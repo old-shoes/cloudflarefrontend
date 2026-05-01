@@ -1,0 +1,41 @@
+name: Deploy Frontend Static
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    if: ${{ secrets.SERVER_PASSWORD != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy frontend static site over SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: 1.14.141.206
+          username: ubuntu
+          password: ${{ secrets.SERVER_PASSWORD }}
+          port: 22
+          script_stop: true
+          script: |
+            export REPO_BRANCH="${{ github.ref_name }}"
+            export DEPLOY_PATH="/www/wwwroot/cloudflarefrontend"
+            export WEB_ROOT="/var/www/cloudflarefrontend"
+            export BUILD_COMMAND="npm run build"
+            export BUILD_DIR="dist"
+            export NPM_BIN="npm"
+
+            if [ ! -d "$DEPLOY_PATH/.git" ]; then
+              echo "Repository not found at $DEPLOY_PATH"
+              exit 1
+            fi
+
+            cd "$DEPLOY_PATH"
+            git fetch --all --prune
+            git checkout "$REPO_BRANCH"
+            git pull --ff-only origin "$REPO_BRANCH"
+
+            export APP_DIR="$DEPLOY_PATH"
+            bash deploy/server/deploy_frontend_static.sh
